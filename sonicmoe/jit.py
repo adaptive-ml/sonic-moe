@@ -129,16 +129,7 @@ def cpp_jit(
         build_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "build", module_name)
 
     def _run(*args, **kwargs):
-        nonlocal cpp_function
-
-        if cpp_function is None:
-            cpp_function = _get_cpp_function(
-                function_name=_run.__name__,
-                module_name=module_name,
-                source_files=source_files,
-                build_directory=build_directory,
-            )
-
+        # cpp_function already compiled at decorator time
         full_args = []
         full_args.extend(args)
         for variable_name in args_spec.args[len(args) :]:
@@ -147,8 +138,16 @@ def cpp_jit(
         return cpp_function(*full_args)
 
     def _wrapper(function: Callable) -> Callable:
-        nonlocal args_spec
+        nonlocal args_spec, cpp_function
         args_spec = inspect.getfullargspec(function)
+
+        # Eager: compile at decorator/import time
+        cpp_function = _get_cpp_function(
+            function_name=function.__name__ if function_name is None else function_name,
+            module_name=module_name,
+            source_files=source_files,
+            build_directory=build_directory,
+        )
 
         _run.__doc__ = function.__doc__
         _run.__name__ = function.__name__ if function_name is None else function_name
