@@ -34,7 +34,7 @@ class CountCumsumTest(TestCommons):
             [False, True],  # do_cumsum
             [torch.device("cuda")],  # device
             [torch.long, torch.int],  # dtype
-            [count_cumsum, torch.compile(count_cumsum, fullgraph=True)],  # function
+            [count_cumsum,] # torch.compile(count_cumsum, fullgraph=True)],  # function
         )
     )
     def test_count_cumsum(

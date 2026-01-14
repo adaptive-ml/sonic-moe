@@ -7,10 +7,24 @@ import torch
 from ..enums import LIBRARY_NAME
 from ..jit import cpp_jit
 
+try:
+    from harmony_kernels import count_cumsum_cuda as _harmony_count_cumsum_cuda
+    _USE_HARMONY_KERNELS = True
+except ImportError:
+    _USE_HARMONY_KERNELS = False
+    print("WARNING: Using sonic count_cumsum")
 
-@torch.library.custom_op(f"{LIBRARY_NAME}::count_cumsum_cuda", mutates_args={"count_output", "cumsum_output"})
-@cpp_jit()
-def count_cumsum_cuda(x: torch.Tensor, count_output: torch.Tensor, cumsum_output: torch.Tensor | None, stream: int) -> None: ...
+
+if _USE_HARMONY_KERNELS:
+    @torch.compiler.disable
+    def count_cumsum_cuda(x: torch.Tensor, count_output: torch.Tensor, cumsum_output: torch.Tensor | None, stream: int) -> None:
+        if cumsum_output is None:
+            cumsum_output = torch.empty(count_output.shape[0], dtype=torch.int32, device=count_output.device)
+        _harmony_count_cumsum_cuda(x, count_output, cumsum_output)
+else:
+    @torch.library.custom_op(f"{LIBRARY_NAME}::count_cumsum_cuda", mutates_args={"count_output", "cumsum_output"})
+    @cpp_jit()
+    def count_cumsum_cuda(x: torch.Tensor, count_output: torch.Tensor, cumsum_output: torch.Tensor | None, stream: int) -> None: ...
 
 
 @torch.no_grad()
